@@ -1,1 +1,93 @@
 
+ document.getElementById("description").textContent = "Chargement...";
+      document.getElementById("pluie").textContent = "";
+      document.getElementById("details").textContent = "";
+
+      try {
+        const geo = await fetch(
+          "https://geocoding-api.open-meteo.com/v1/search?name=" +
+          encodeURIComponent(nom) + "&count=1&language=fr&format=json"
+        );
+
+        const lieux = await geo.json();
+
+        if (!lieux.results || lieux.results.length === 0) {
+          document.getElementById("description").textContent =
+            "Ville introuvable.";
+          return;
+        }
+
+        const lieu = lieux.results[0];
+
+        const url = "https://api.open-meteo.com/v1/forecast" +
+          "?latitude=" + lieu.latitude +
+          "&longitude=" + lieu.longitude +
+          "&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,showers,weather_code,wind_speed_10m" +
+          "&daily=precipitation_probability_max,precipitation_sum" +
+          "&timezone=auto";
+
+        const reponse = await fetch(url);
+        const meteo = await reponse.json();
+
+        afficherMeteo(lieu, meteo);
+
+      } catch (erreur) {
+        document.getElementById("description").textContent =
+          "Impossible de récupérer la météo.";
+      }
+    }
+
+    function afficherMeteo(lieu, meteo) {
+      const m = meteo.current;
+      const code = m.weather_code;
+
+      let icone = "🌤️";
+      let texte = "Temps variable";
+
+      if (code === 0) {
+        icone = "☀️"; texte = "Ciel dégagé";
+      } else if ([1, 2].includes(code)) {
+        icone = "🌤️"; texte = "Peu nuageux";
+      } else if (code === 3) {
+        icone = "☁️"; texte = "Ciel couvert";
+      } else if ([45, 48].includes(code)) {
+        icone = "🌫️"; texte = "Brouillard";
+      } else if ([51, 53, 55, 56, 57].includes(code)) {
+        icone = "🌦️"; texte = "Bruine";
+      } else if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) {
+        icone = "🌧️"; texte = "Pluie";
+      } else if ([71, 73, 75, 77, 85, 86].includes(code)) {
+        icone = "❄️"; texte = "Neige";
+      } else if ([95, 96, 99].includes(code)) {
+        icone = "⛈️"; texte = "Orage";
+      }
+
+      document.getElementById("ville").textContent =
+        lieu.name + (lieu.country ? ", " + lieu.country : "");
+
+      document.getElementById("icone").textContent = icone;
+      document.getElementById("temperature").textContent =
+        Math.round(m.temperature_2m) + "°";
+
+      document.getElementById("description").textContent = texte;
+
+      document.getElementById("pluie").textContent =
+        "🌧️ Risque de pluie aujourd'hui : " +
+        (meteo.daily.precipitation_probability_max?.[0] ?? "Non disponible") +
+        "%";
+
+      document.getElementById("details").innerHTML =
+        "🌡️ Ressenti : " + Math.round(m.apparent_temperature) + "°C<br>" +
+        "💧 Humidité : " + m.relative_humidity_2m + "%<br>" +
+        "🌧️ Pluie actuelle : " + m.precipitation + " mm<br>" +
+        "💨 Vent : " + m.wind_speed_10m + " km/h<br>" +
+        "☔ Pluie prévue : " +
+        (meteo.daily.precipitation_sum?.[0] ?? 0) + " mm";
+    }
+
+    document.getElementById("recherche").addEventListener("keydown", function(e) {
+      if (e.key === "Enter") chercherVille();
+    });
+  </script>
+</body>
+</html>
